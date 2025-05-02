@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand Simulator</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="container">
+        <div id="toolbar">
+            <div class="tool-section">
+                <button class="tool-button material-button active" data-material="sand">🏝️</button>
+                <button class="tool-button material-button" data-material="dirt">🌱</button>
+                <button class="tool-button material-button" data-material="wood">🪵</button>
+                <button class="tool-button material-button" data-material="water">💧</button>
+                <button class="tool-button material-button" data-material="fire">🔥</button>
+                <button class="tool-button material-button" data-material="wall">🧱</button>
+            </div>
+            <div class="tool-section">
+                <button class="tool-button tool-action active" data-tool="draw">✏️</button>
+                <button class="tool-button tool-action" data-tool="erase">🧹</button>
+                <button class="tool-button tool-action" data-tool="ignite">🧨</button>
+            </div>
+            <div class="tool-section">
+                <label for="brush-size">🖌️</label>
+                <input type="range" id="brush-size" min="1" max="20" value="5">
+                <span id="brush-size-display">5</span>
+            </div>
+            <div class="tool-section">
+                <button class="tool-button action-button" id="clear-button">🗑️</button>
+                <button class="tool-button action-button" id="pause-button">⏯️</button>
+            </div>
+        </div>
+        <div id="simulation-container">
+            <canvas id="simulation"></canvas>
+        </div>
+    </div>
+
+    <script src="materials.js"></script>
+    <script src="engine.js"></script>
+    <script src="tools.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
