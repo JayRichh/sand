@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebGL Diagnosis</title>
+    <style>
+        body {
+            font-family: monospace;
+            background: #111;
+            color: #eee;
+            padding: 20px;
+        }
+        #log {
+            background: #222;
+            padding: 10px;
+            border-radius: 5px;
+            white-space: pre;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .success { color: #4f4; }
+        .warning { color: #ff4; }
+        .error { color: #f44; }
+        .info { color: #4af; }
+        
+        h2 { color: #4af; }
+        button {
+            background: #333;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover { background: #444; }
+        hr { border-color: #333; }
+    </style>
+</head>
+<body>
+    <h1>WebGL Diagnostic Tool</h1>
+    <button id="runTests">Run Diagnostic Tests</button>
+    <button id="clearLog">Clear Log</button>
+    
+    <h2>Canvas Tests</h2>
+    <canvas id="testCanvas" width="400" height="300"></canvas>
+    
+    <h2>Log Output</h2>
+    <div id="log"></div>
+    
+    <script>
+        const log = document.getElementById('log');
+        const testCanvas = document.getElementById('testCanvas');
+        
+        function logMsg(msg, type = 'info') {
+            const line = document.createElement('div');
+            line.textContent = msg;
+            line.className = type;
+            log.appendChild(line);
+            log.scrollTop = log.scrollHeight;
+            console.log(`[${type}] ${msg}`);
+        }
+        
+        function clearLog() {
+            log.innerHTML = '';
+        }
+        
+        document.getElementById('clearLog').addEventListener('click', clearLog);
+        document.getElementById('runTests').addEventListener('click', runDiagnostics);
+        
+        function testBasicWebGL() {
+            logMsg("Testing Basic WebGL Support", "info");
+            
+            try {
+                const testContext = testCanvas.getContext('webgl');
+                if (testContext) {
+                    logMsg("✅ Basic WebGL is supported", "success");
+                    return testContext;
+                } else {
+                    logMsg("❌ Basic WebGL is not supported", "error");
+                    return null;
+                }
+            } catch (e) {
+                logMsg(`❌ Error testing WebGL: ${e.message}`, "error");
+                return null;
+            }
+        }
+        
+        function testWebGL2() {
+            logMsg("Testing WebGL2 Support", "info");
+            
+            try {
+                const testContext = testCanvas.getContext('webgl2');
+                if (testContext) {
+                    logMsg("✅ WebGL2 is supported", "success");
+                    return testContext;
+                } else {
+                    logMsg("ℹ️ WebGL2 is not supported (this is OK)", "warning");
+                    return null;
+                }
+            } catch (e) {
+                logMsg(`ℹ️ Error testing WebGL2: ${e.message}`, "warning");
+                return null;
+            }
+        }
+        
+        function getWebGLInfo(gl) {
+            if (!gl) return;
+            
+            logMsg("WebGL Context Information:", "info");
+            
+            try {
+                const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                if (debugInfo) {
+                    const vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL);
+                    const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL);
+                    logMsg(`GPU Vendor: ${vendor}`, "info");
+                    logMsg(`GPU Renderer: ${renderer}`, "info");
+                    
+                    // Check for software renderers
+                    if (/SwiftShader|Software|Microsoft Basic Renderer/i.test(renderer)) {
+                        logMsg("⚠️ Software renderer detected - may have limited capabilities", "warning");
+                    }
+                } else {
+                    logMsg("⚠️ WEBGL_debug_renderer_info not available", "warning");
+                }
+                
+                logMsg(`WebGL Version: ${gl.getParameter(gl.VERSION)}`, "info");
+                logMsg(`Shading Language: ${gl.getParameter(gl.SHADING_LANGUAGE_VERSION)}`, "info");
+                logMsg(`Max Texture Size: ${gl.getParameter(gl.MAX_TEXTURE_SIZE)}`, "info");
+                
+                const extensions = gl.getSupportedExtensions();
+                logMsg(`Available Extensions: ${extensions.length}`, "info");
+                if (extensions.includes('OES_texture_float')) {
+                    logMsg("✅ Floating point textures supported", "success");
+                }
+            } catch (e) {
+                logMsg(`❌ Error getting WebGL info: ${e.message}`, "error");
+            }
+        }
+        
+        function testShaderCompilation(gl) {
+            if (!gl) return;
+            
+            logMsg("Testing Shader Compilation", "info");
+            
+            const vertexShaderSource = `
+                attribute vec2 a_position;
+                void main() {
+                    gl_Position = vec4(a_position, 0.0, 1.0);
+                }
+            `;
+            
+            const fragmentShaderSource = `
+                precision mediump float;
+                void main() {
+                    gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                }
+            `;
+            
+            try {
+                // Compile vertex shader
+                const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+                gl.shaderSource(vertexShader, vertexShaderSource);
+                gl.compileShader(vertexShader);
+                
+                if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS)) {
+                    const log = gl.getShaderInfoLog(vertexShader);
+                    throw new Error(`Vertex shader compilation failed: ${log}`);
+                } else {
+                    logMsg("✅ Vertex shader compilation successful", "success");
+                }
+                
+                // Compile fragment shader
+                const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+                gl.shaderSource(fragmentShader, fragmentShaderSource);
+                gl.compileShader(fragmentShader);
+                
+                if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS)) {
+                    const log = gl.getShaderInfoLog(fragmentShader);
+                    throw new Error(`Fragment shader compilation failed: ${log}`);
+                } else {
+                    logMsg("✅ Fragment shader compilation successful", "success");
+                }
+                
+                // Create and link program
+                const program = gl.createProgram();
+                gl.attachShader(program, vertexShader);
+                gl.attachShader(program, fragmentShader);
+                gl.linkProgram(program);
+                
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+                    const log = gl.getProgramInfoLog(program);
+                    throw new Error(`Program linking failed: ${log}`);
+                } else {
+                    logMsg("✅ Shader program linking successful", "success");
+                }
+                
+                // Try to draw something
+                gl.useProgram(program);
+                const positionLocation = gl.getAttribLocation(program, 'a_position');
+                const positionBuffer = gl.createBuffer();
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                gl.bufferData(
+                    gl.ARRAY_BUFFER, 
+                    new Float32Array([
+                        -1, -1,
+                        1, -1,
+                        -1, 1,
+                        1, 1
+                    ]), 
+                    gl.STATIC_DRAW
+                );
+                
+                gl.enableVertexAttribArray(positionLocation);
+                gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
+                
+                gl.clearColor(0, 0, 0, 0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                
+                logMsg("✅ WebGL rendering test successful", "success");
+                
+                // Cleanup
+                gl.deleteProgram(program);
+                gl.deleteShader(vertexShader);
+                gl.deleteShader(fragmentShader);
+                gl.deleteBuffer(positionBuffer);
+                
+            } catch (e) {
+                logMsg(`❌ Shader test failed: ${e.message}`, "error");
+            }
+        }
+        
+        function testTextureOperations(gl) {
+            if (!gl) return;
+            
+            logMsg("Testing Texture Operations", "info");
+            
+            try {
+                // Create a texture
+                const texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                
+                // Set texture parameters
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                
+                // Fill the texture with pixel data
+                const pixel = new Uint8Array([255, 0, 0, 255]);
+                gl.texImage2D(
+                    gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0,
+                    gl.RGBA, gl.UNSIGNED_BYTE, pixel
+                );
+                
+                logMsg("✅ Texture creation and initialization successful", "success");
+                
+                // Try to create and fill texture from canvas
+                const testCanvas2 = document.createElement('canvas');
+                testCanvas2.width = 2;
+                testCanvas2.height = 2;
+                const ctx = testCanvas2.getContext('2d');
+                ctx.fillStyle = 'red';
+                ctx.fillRect(0, 0, 2, 2);
+                
+                try {
+                    gl.texImage2D(
+                        gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
+                        gl.UNSIGNED_BYTE, testCanvas2
+                    );
+                    logMsg("✅ Canvas to texture transfer successful", "success");
+                } catch (e) {
+                    logMsg(`❌ Canvas to texture transfer failed: ${e.message}`, "error");
+                }
+                
+                gl.deleteTexture(texture);
+                
+            } catch (e) {
+                logMsg(`❌ Texture test failed: ${e.message}`, "error");
+            }
+        }
+        
+        function testCanvasReadback(gl) {
+            if (!gl) return;
+            
+            logMsg("Testing Canvas Readback", "info");
+            
+            try {
+                // Create a small framebuffer to test readback
+                const width = 2, height = 2;
+                
+                // Create and bind framebuffer
+                const framebuffer = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+                
+                // Create texture for framebuffer
+                const texture = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, texture);
+                gl.texImage2D(
+                    gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
+                    gl.RGBA, gl.UNSIGNED_BYTE, null
+                );
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.framebufferTexture2D(
+                    gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0
+                );
+                
+                // Check framebuffer status
+                const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+                if (status !== gl.FRAMEBUFFER_COMPLETE) {
+                    throw new Error(`Framebuffer not complete: ${status}`);
+                }
+                
+                // Clear to red
+                gl.clearColor(1, 0, 0, 1);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+                
+                // Try to read pixels
+                const pixels = new Uint8Array(width * height * 4);
+                gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                
+                // Simple check that pixels are red
+                if (pixels[0] === 255 && pixels[1] === 0 && pixels[2] === 0) {
+                    logMsg("✅ Framebuffer readback successful", "success");
+                } else {
+                    logMsg(`⚠️ Unexpected pixel values: [${pixels[0]}, ${pixels[1]}, ${pixels[2]}, ${pixels[3]}]`, "warning");
+                }
+                
+                // Cleanup
+                gl.deleteFramebuffer(framebuffer);
+                gl.deleteTexture(texture);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                
+            } catch (e) {
+                logMsg(`❌ Canvas readback test failed: ${e.message}`, "error");
+            }
+        }
+        
+        function analyzeBrowserFeatures() {
+            logMsg("Browser Feature Detection", "info");
+            
+            // Check for important browser features
+            const features = {
+                WebWorkers: typeof Worker !== 'undefined',
+                SharedArrayBuffer: typeof SharedArrayBuffer !== 'undefined',
+                OffscreenCanvas: typeof OffscreenCanvas !== 'undefined',
+                BigInt: typeof BigInt !== 'undefined',
+                BigInt64Array: typeof BigInt64Array !== 'undefined',
+                requestIdleCallback: typeof requestIdleCallback !== 'undefined',
+                IntersectionObserver: typeof IntersectionObserver !== 'undefined',
+                ResizeObserver: typeof ResizeObserver !== 'undefined',
+                PerformanceObserver: typeof PerformanceObserver !== 'undefined',
+                AbortController: typeof AbortController !== 'undefined',
+                Atomics: typeof Atomics !== 'undefined',
+                TextEncoder: typeof TextEncoder !== 'undefined',
+                TextDecoder: typeof TextDecoder !== 'undefined',
+                URL: typeof URL !== 'undefined',
+                Blob: typeof Blob !== 'undefined',
+                FileReader: typeof FileReader !== 'undefined',
+                fetch: typeof fetch !== 'undefined',
+                Promises: typeof Promise !== 'undefined',
+                ServiceWorker: 'serviceWorker' in navigator,
+                WebAssembly: typeof WebAssembly !== 'undefined',
+                Canvas2D: !!document.createElement('canvas').getContext('2d'),
+                WebGPU: !!window.GPUDevice
+            };
+            
+            for (const [feature, supported] of Object.entries(features)) {
+                logMsg(`${supported ? '✅' : '❌'} ${feature}: ${supported ? 'Available' : 'Not available'}`, supported ? "info" : "warning");
+            }
+        }
+        
+        function runDiagnostics() {
+            clearLog();
+            logMsg("Starting WebGL Diagnostics...", "info");
+            
+            analyzeBrowserFeatures();
+            
+            // Test browser info
+            logMsg("Browser Info:", "info");
+            logMsg(`User Agent: ${navigator.userAgent}`, "info");
+            logMsg(`Vendor: ${navigator.vendor}`, "info");
+            logMsg(`Platform: ${navigator.platform}`, "info");
+            logMsg(`Hardware Concurrency: ${navigator.hardwareConcurrency}`, "info");
+            
+            // Draw browser and HTML5 canvas support test
+            logMsg("Drawing to Canvas with 2D Context", "info");
+            const ctx = testCanvas.getContext('2d');
+            if (ctx) {
+                ctx.fillStyle = 'blue';
+                ctx.fillRect(0, 0, 400, 300);
+                ctx.fillStyle = 'white';
+                ctx.font = '24px Arial';
+                ctx.fillText('Canvas 2D Works!', 120, 150);
+                logMsg("✅ Canvas 2D drawing successful", "success");
+            } else {
+                logMsg("❌ Could not get 2D context", "error");
+            }
+            
+            logMsg("---------- WebGL Support Tests ----------", "info");
+            
+            // Start with WebGL1
+            const gl = testBasicWebGL();
+            
+            // Test WebGL2 as well
+            const gl2 = testWebGL2();
+            
+            // If WebGL1 is available, test its capabilities
+            if (gl) {
+                getWebGLInfo(gl);
+                testShaderCompilation(gl);
+                testTextureOperations(gl);
+                testCanvasReadback(gl);
+            }
+            
+            logMsg("WebGL Diagnostics Complete", "success");
+        }
+        
+        // Auto-run diagnostics on load
+        window.onload = runDiagnostics;
+    </script>
+</body>
+</html>

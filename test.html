@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sand Simulator Test</title>
+    <style>
+        body { 
+            margin: 0; 
+            padding: 0; 
+            overflow: hidden;
+            background: #111;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        #log {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+    </style>
+</head>
+<body>
+    <div id="log"></div>
+    <script>
+        // Intercept console.log and console.error to display in the page
+        const logElement = document.getElementById('log');
+        
+        function addLog(msg, type) {
+            const line = document.createElement('div');
+            line.textContent = msg;
+            line.style.color = type === 'error' ? '#ff6666' : '#66ff66';
+            logElement.appendChild(line);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Override console methods
+        const originalLog = console.log;
+        const originalError = console.error;
+        
+        console.log = function() {
+            originalLog.apply(console, arguments);
+            addLog(Array.from(arguments).join(' '), 'log');
+        };
+        
+        console.error = function() {
+            originalError.apply(console, arguments);
+            addLog(Array.from(arguments).join(' '), 'error');
+        };
+        
+        console.warn = function() {
+            originalError.apply(console, arguments);
+            addLog(Array.from(arguments).join(' '), 'warn');
+        };
+        
+        // Load the application
+        console.log('Loading application...');
+        
+        // Load scripts in the correct order
+        function loadScript(src, callback) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = callback;
+            document.body.appendChild(script);
+        }
+        
+        loadScript('materials.js', function() {
+            loadScript('shaders.js', function() {
+                loadScript('engine.js', function() {
+                    loadScript('tools.js', function() {
+                        loadScript('app.js', function() {
+                            console.log('All scripts loaded');
+                            
+                            // Create canvas and inject it
+                            const canvas = document.createElement('canvas');
+                            canvas.id = 'simulation';
+                            canvas.style.position = 'absolute';
+                            canvas.style.top = '0';
+                            canvas.style.left = '0';
+                            canvas.style.width = '100%';
+                            canvas.style.height = '100%';
+                            document.body.appendChild(canvas);
+                            
+                            // Create container and toolbar for controls
+                            const container = document.createElement('div');
+                            container.id = 'container';
+                            container.style.position = 'absolute';
+                            container.style.top = '0';
+                            container.style.left = '0';
+                            container.style.width = '100%';
+                            container.style.height = '100%';
+                            document.body.appendChild(container);
+                            
+                            const toolbar = document.createElement('div');
+                            toolbar.id = 'toolbar';
+                            toolbar.style.position = 'absolute';
+                            toolbar.style.top = '10px';
+                            toolbar.style.right = '10px';
+                            toolbar.style.background = 'rgba(30,30,30,0.8)';
+                            toolbar.style.padding = '10px';
+                            toolbar.style.borderRadius = '5px';
+                            container.appendChild(toolbar);
+                            
+                            const simContainer = document.createElement('div');
+                            simContainer.id = 'simulation-container';
+                            simContainer.style.position = 'absolute';
+                            simContainer.style.top = '0';
+                            simContainer.style.left = '0';
+                            simContainer.style.width = '100%';
+                            simContainer.style.height = '100%';
+                            container.appendChild(simContainer);
+                            
+                            simContainer.appendChild(canvas);
+                            
+                            // Create cursor overlay
+                            const cursorOverlay = document.createElement('div');
+                            cursorOverlay.id = 'cursor-overlay';
+                            cursorOverlay.className = 'hidden';
+                            container.appendChild(cursorOverlay);
+                            
+                            // Trigger the DOMContentLoaded manually since we're injecting everything
+                            const event = new Event('DOMContentLoaded', {
+                                bubbles: true,
+                                cancelable: true
+                            });
+                            document.dispatchEvent(event);
+                        });
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>

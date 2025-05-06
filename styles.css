@@ -4,8 +4,17 @@
     --inactive: #333333;
     --hover: #666666;
     --active: #999999;
-    --border-color: #444444;
+    --border-color: #44444428;
     --accent-color: #555555;
+    --title-opacity: 0.7;
+    --icon-shadow: 0 0 8px rgba(255,255,255,0.4);
+    --section-spacing: 12px;
+    --sand-color: #e6d296;
+    --water-color: #32a0e6;
+    --fire-color: #ff6432;
+    --wood-color: #a07850;
+    --wall-color: #505050;
+    --active-indicator: 8px;
 }
 
 * {
@@ -16,7 +25,7 @@
 
 body {
     overflow: hidden;
-    font-family: 'Arial', sans-serif;
+    font-family: 'IBM Plex Sans', sans-serif;
     background-color: var(--bg-color);
     color: var(--ui-color);
 }
@@ -26,25 +35,63 @@ body {
     flex-direction: column;
     width: 100vw;
     height: 100vh;
+    position: relative;
 }
 
 #toolbar {
-    height: 70px;
+    height: auto;
     background-color: var(--bg-color);
     border-bottom: 2px solid var(--border-color);
     display: flex;
     flex-direction: row;
-    justify-content: center;
-    align-items: center;
+    justify-content: space-around;
+    align-items: flex-start;
     z-index: 10;
-    padding: 0 20px;
+    padding: 12px 24px;
 }
 
 .tool-section {
-    margin: 0 15px;
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
+    min-width: 0;
+    flex: 1;
+    margin: 0 var(--section-spacing);
+    max-width: 300px;
+}
+
+.section-title {
+    font-size: 12px;
+    font-weight: 300;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    opacity: var(--title-opacity);
+    color: var(--ui-color);
+    align-self: center;
+    white-space: nowrap;
+}
+
+.button-group {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+}
+
+.brush-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 8px;
+}
+
+.brush-icon {
+    width: 24px;
+    height: 24px;
+    opacity: 0.8;
 }
 
 #simulation-container {
@@ -67,26 +114,24 @@ canvas {
     width: 50px;
     height: 50px;
     margin: 0 5px;
-    border: 2px solid var(--inactive);
-    background-color: var(--bg-color);
+    border: none;
+    background: none;
     color: var(--ui-color);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.2s ease;
-    border-radius: 8px;
+    transition: transform 0.2s ease;
+    border-radius: 6px;
     font-size: 24px;
 }
 
 .tool-button:hover {
-    border-color: var(--hover);
-    transform: scale(1.05);
+    transform: scale(1.1);
 }
 
 .tool-button.active {
-    border-color: var(--ui-color);
-    background-color: var(--active);
+    transform: scale(1);
 }
 
 label {
@@ -95,9 +140,37 @@ label {
 }
 
 input[type="range"] {
-    width: 100px;
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 6px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+    outline: none;
     margin: 0 10px;
     cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--accent-color);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    transition: background 0.2s ease, transform 0.1s ease;
+    cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--hover);
+    transform: scale(1.2);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+    background: var(--active);
+    transform: scale(1.1);
 }
 
 #brush-size-display {
@@ -119,15 +192,144 @@ input[type="range"] {
     cursor: cell;
 }
 
+.tool-button {
+    width: 56px;
+    height: 56px;
+    margin: 0 5px;
+    border: none;
+    background: none;
+    color: var(--ui-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    border-radius: 6px;
+    position: relative;
+}
+
+.tool-button .icon {
+    display: inline-block;
+    width: 36px;
+    height: 36px;
+    filter: drop-shadow(var(--icon-shadow));
+    transition: filter 0.2s ease, transform 0.2s ease;
+    object-fit: contain;
+}
+
+.tool-button:hover .icon {
+    filter: drop-shadow(0 0 6px rgba(255,255,255,0.6));
+    transform: scale(1.2);
+}
+
+.tool-button.active .icon {
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.8));
+    transform: scale(1.1);
+}
+
+.tool-button.active::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: var(--active-indicator);
+    height: var(--active-indicator);
+    border-radius: 50%;
+    background-color: var(--active);
+    box-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+    animation: pulse 1.5s infinite;
+}
+
+.tool-button.material-button.active[data-material="sand"]::after {
+    background-color: var(--sand-color);
+}
+
+.tool-button.material-button.active[data-material="water"]::after {
+    background-color: var(--water-color);
+}
+
+.tool-button.material-button.active[data-material="fire"]::after {
+    background-color: var(--fire-color);
+}
+
+.tool-button.material-button.active[data-material="wood"]::after {
+    background-color: var(--wood-color);
+}
+
+.tool-button.material-button.active[data-material="wall"]::after {
+    background-color: var(--wall-color);
+}
+
+#cursor-overlay {
+    position: absolute;
+    pointer-events: none;
+    z-index: 100;
+    width: 36px;
+    height: 36px;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#cursor-overlay img {
+    width: 28px;
+    height: 28px;
+    filter: drop-shadow(var(--icon-shadow));
+}
+
+#cursor-overlay.hidden {
+    display: none;
+}
+
+.tooltip {
+    position: fixed;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1000;
+    transform: translate(-50%, 0);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-weight: 300;
+    letter-spacing: 0.5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    max-width: 200px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 @media (max-height: 600px) {
     #toolbar {
-        height: 60px;
+        padding: 8px 16px;
     }
     
     .tool-button {
         width: 40px;
         height: 40px;
-        font-size: 20px;
+    }
+    
+    .section-title {
+        font-size: 10px;
+        margin-bottom: 6px;
     }
 }
 

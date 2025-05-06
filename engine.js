@@ -1,12 +1,46 @@
 class SimulationEngine {
     constructor(canvas, materials) {
         this.canvas = canvas;
-        this.ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        // Try different context options to ensure compatibility
+        try {
+            this.ctx = canvas.getContext('2d', { 
+                alpha: true,
+                willReadFrequently: true, 
+                antialias: true, 
+                powerPreference: 'high-performance' 
+            });
+            
+            if (!this.ctx) {
+                this.ctx = canvas.getContext('2d', { willReadFrequently: true });
+                console.warn('Using fallback 2D context');
+            }
+            
+            if (!this.ctx) {
+                this.ctx = canvas.getContext('2d');
+                console.warn('Using basic 2D context');
+            }
+        } catch (e) {
+            console.error('Error getting 2D context:', e);
+            this.ctx = canvas.getContext('2d');
+        }
+        
+        if (!this.ctx) {
+            console.error('Failed to get canvas context');
+            throw new Error('Unable to initialize graphics context');
+        }
+        
         this.materials = materials;
         
-        // Resize canvas to match display size
-        this.resizeCanvas();
-        window.addEventListener('resize', () => this.resizeCanvas());
+        // Use a simple fallback renderer by default
+        this.shaderRenderer = { 
+            enabled: false,
+            render: function(imageData) { return imageData; },
+            resize: function() {}
+        };
+        
+        // Skip WebGL initialization entirely as it's not available
+        // This will eliminate all WebGL-related errors
         
         // Simulation properties
         this.CHUNK_SIZE = 32;
@@ -18,10 +52,6 @@ class SimulationEngine {
         this.activeChunks = new Set();
         this.dirtyRegion = { startX: 0, startY: 0, endX: 0, endY: 0, isDirty: false };
         
-        // Initialize grid and rendering
-        this.initializeGrid();
-        this.initializeRendering();
-        
         // Physics constants
         this.DIRECTION_CHANCE = 0.5; // For flow randomization
         this.FIRE_RISE_CHANCE = 0.8; // Chance for fire to rise
@@ -32,8 +62,29 @@ class SimulationEngine {
             this.materials.packColor(255, 180, 0),  // Yellow
         ];
         
+        // Resize canvas to match display size
+        this.resizeCanvas();
+        window.addEventListener('resize', () => this.resizeCanvas());
+        
+        // Initialize grid and rendering
+        this.initializeGrid();
+        this.initializeRendering();
+        
         // Start the simulation
         this.startSimulation();
+    }
+    
+    testWebGLSupport() {
+        try {
+            const testCanvas = document.createElement('canvas');
+            testCanvas.width = testCanvas.height = 10;
+            const testContext = testCanvas.getContext('webgl') || 
+                              testCanvas.getContext('experimental-webgl');
+            return !!testContext;
+        } catch (e) {
+            console.warn('WebGL detection failed:', e);
+            return false;
+        }
     }
     
     // Resize canvas to match display size
@@ -43,6 +94,10 @@ class SimulationEngine {
         
         this.canvas.width = containerWidth;
         this.canvas.height = containerHeight;
+        
+        if (this.shaderRenderer) {
+            this.shaderRenderer.resize(containerWidth, containerHeight);
+        }
         
         if (this.grid) {
             this.initializeGrid();
@@ -625,8 +680,13 @@ class SimulationEngine {
             this.renderPixels();
         }
         
-        // Put the image data on the canvas
-        this.ctx.putImageData(this.imageData, 0, 0);
+        // Apply shader effects
+        if (this.shaderRenderer && this.shaderRenderer.enabled) {
+            this.imageData = this.shaderRenderer.render(this.imageData);
+        } else {
+            // Put the image data on the canvas
+            this.ctx.putImageData(this.imageData, 0, 0);
+        }
         
         // Reset dirty region
         this.setDirtyRegion(0, 0, 0, 0, false);

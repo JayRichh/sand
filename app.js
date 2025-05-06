@@ -1,24 +1,100 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const canvas = document.getElementById('simulation');
-    if (!canvas) {
-        console.error('Canvas element not found');
-        return;
+// Remove the event listeners since we're calling initializeSimulation directly from index.html
+// This prevents potential double-initialization issues
+// document.addEventListener('DOMContentLoaded', () => {
+//     window.addEventListener('load', initializeSimulation);
+// });
+
+function initializeSimulation() {
+    try {
+        console.log('Starting application initialization...');
+        
+        // Get the canvas element
+        const canvas = document.getElementById('simulation');
+        if (!canvas) {
+            console.error('Canvas element not found');
+            return;
+        }
+        
+        // Verify the canvas is ready and has a 2D context
+        const testCtx = canvas.getContext('2d');
+        if (!testCtx) {
+            console.error('2D context not available on canvas');
+            return;
+        }
+        
+        // Initialize materials
+        console.log('Initializing materials...');
+        const materials = new Materials();
+        
+        // Create engine with improved error handling
+        console.log('Creating simulation engine...');
+        let engine;
+        try {
+            engine = new SimulationEngine(canvas, materials);
+        } catch (e) {
+            console.error('Failed to initialize simulation engine:', e);
+            showFallbackMessage();
+            return;
+        }
+        
+        if (!engine) {
+            console.error('Engine creation failed');
+            showFallbackMessage();
+            return;
+        }
+        
+        // Set up tool manager
+        console.log('Setting up tool manager...');
+        const toolManager = new ToolManager(engine, canvas);
+        
+        // Create initial sandbox environment
+        console.log('Creating sandbox environment...');
+        createSandbox(engine);
+        
+        // Log initialization success
+        console.log('Sand Simulator Initialized');
+        console.log('Controls:');
+        console.log('- Materials: 1-6 number keys or toolbar buttons');
+        console.log('- Tools: D (draw), E (erase), F (fire)');
+        console.log('- Clear: C key or clear button');
+        console.log('- Pause/Resume: Space key or pause button');
+        console.log('- Brush Size: [ and ] keys or slider');
+        
+    } catch (error) {
+        // Global error handling
+        console.error('Failed to initialize application:', error);
+        showFallbackMessage();
     }
-    
-    const materials = new Materials();
-    const engine = new SimulationEngine(canvas, materials);
-    const toolManager = new ToolManager(engine, canvas);
-    
-    createSandbox(engine);
-    
-    console.log('Sand Simulator Initialized');
-    console.log('Controls:');
-    console.log('- Materials: 1-6 number keys or toolbar buttons');
-    console.log('- Tools: D (draw), E (erase), F (fire)');
-    console.log('- Clear: C key or clear button');
-    console.log('- Pause/Resume: Space key or pause button');
-    console.log('- Brush Size: [ and ] keys or slider');
-});
+}
+
+// Shows a message when the application can't load
+function showFallbackMessage() {
+    // Only display if an error element doesn't already exist
+    if (!document.getElementById('error-message')) {
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'error-message';
+        errorDiv.style.position = 'fixed';
+        errorDiv.style.top = '50%';
+        errorDiv.style.left = '50%';
+        errorDiv.style.transform = 'translate(-50%, -50%)';
+        errorDiv.style.background = 'rgba(0,0,0,0.8)';
+        errorDiv.style.color = 'white';
+        errorDiv.style.padding = '20px';
+        errorDiv.style.borderRadius = '5px';
+        errorDiv.style.maxWidth = '80%';
+        errorDiv.style.textAlign = 'center';
+        errorDiv.style.zIndex = '1000';
+        errorDiv.style.fontSize = '16px';
+        
+        errorDiv.innerHTML = `
+            <h2>Sand Simulator could not initialize properly</h2>
+            <p>Your browser might not support all the required features.</p>
+            <p>The simulation will still run in basic mode without shader effects.</p>
+        `;
+        
+        document.body.appendChild(errorDiv);
+    }
+}
 
 function createSandbox(engine) {
     const width = engine.width;

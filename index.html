@@ -4,42 +4,185 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sand Simulator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div id="container">
         <div id="toolbar">
             <div class="tool-section">
-                <button class="tool-button material-button active" data-material="sand">🏝️</button>
-                <button class="tool-button material-button" data-material="dirt">🌱</button>
-                <button class="tool-button material-button" data-material="wood">🪵</button>
-                <button class="tool-button material-button" data-material="water">💧</button>
-                <button class="tool-button material-button" data-material="fire">🔥</button>
-                <button class="tool-button material-button" data-material="wall">🧱</button>
+                <div class="section-title">Materials</div>
+                <div class="button-group">
+                    <button class="tool-button material-button active" data-material="sand" title="Sand">
+                        <img src="mojis/sand.png" alt="Sand" class="icon">
+                    </button>
+                    <button class="tool-button material-button" data-material="wood" title="Wood">
+                        <img src="mojis/wood.png" alt="Wood" class="icon">
+                    </button>
+                    <button class="tool-button material-button" data-material="water" title="Water">
+                        <img src="mojis/water.png" alt="Water" class="icon">
+                    </button>
+                    <button class="tool-button material-button" data-material="fire" title="Fire">
+                        <img src="mojis/fire.png" alt="Fire" class="icon">
+                    </button>
+                    <button class="tool-button material-button" data-material="wall" title="Wall">
+                        <img src="mojis/wall.png" alt="Wall" class="icon">
+                    </button>
+                </div>
             </div>
+            
             <div class="tool-section">
-                <button class="tool-button tool-action active" data-tool="draw">✏️</button>
-                <button class="tool-button tool-action" data-tool="erase">🧹</button>
-                <button class="tool-button tool-action" data-tool="ignite">🧨</button>
+                <div class="section-title">Tools</div>
+                <div class="button-group">
+                    <button class="tool-button tool-action active" data-tool="draw" title="Draw">
+                        <img src="mojis/pencil.png" alt="Draw" class="icon">
+                    </button>
+                    <button class="tool-button tool-action" data-tool="erase" title="Erase">
+                        <img src="mojis/bin.png" alt="Erase" class="icon">
+                    </button>
+                    <button class="tool-button tool-action" data-tool="ignite" title="Ignite">
+                        <img src="mojis/fire.png" alt="Ignite" class="icon">
+                    </button>
+                </div>
             </div>
+            
             <div class="tool-section">
-                <label for="brush-size">🖌️</label>
-                <input type="range" id="brush-size" min="1" max="20" value="5">
-                <span id="brush-size-display">5</span>
+                <div class="section-title">Brush Size</div>
+                <div class="brush-control">
+                    <img src="mojis/paintbrush.png" alt="Brush" class="brush-icon">
+                    <input type="range" id="brush-size" min="1" max="20" value="5">
+                    <span id="brush-size-display">5</span>
+                </div>
             </div>
+            
             <div class="tool-section">
-                <button class="tool-button action-button" id="clear-button">🗑️</button>
-                <button class="tool-button action-button" id="pause-button">⏯️</button>
+                <div class="section-title">Actions</div>
+                <div class="button-group">
+                    <button class="tool-button action-button" id="clear-button" title="Clear Canvas">
+                        <img src="mojis/bin.png" alt="Clear" class="icon">
+                    </button>
+                    <button class="tool-button action-button" id="pause-button" title="Pause Simulation">
+                        <img src="mojis/playpause.png" alt="Pause/Play" class="icon">
+                    </button>
+                </div>
             </div>
         </div>
+        <div id="cursor-overlay" class="hidden"></div>
         <div id="simulation-container">
             <canvas id="simulation"></canvas>
         </div>
     </div>
 
-    <script src="materials.js"></script>
-    <script src="engine.js"></script>
-    <script src="tools.js"></script>
-    <script src="app.js"></script>
+    <!-- Load scripts in correct order and initialize the application -->
+    <script>
+    // Function to load scripts in sequence
+    function loadScriptsInOrder(scripts, callback) {
+        if (scripts.length === 0) {
+            if (callback) callback();
+            return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = scripts[0];
+        
+        script.onload = function() {
+            loadScriptsInOrder(scripts.slice(1), callback);
+        };
+        
+        script.onerror = function() {
+            console.error('Failed to load script:', scripts[0]);
+            loadScriptsInOrder(scripts.slice(1), callback);
+        };
+        
+        document.body.appendChild(script);
+    }
+    
+    // Initialize and test WebGL capability directly
+    function testWebGLSupport() {
+        try {
+            // Create a test canvas for WebGL feature detection
+            const testCanvas = document.createElement('canvas');
+            testCanvas.width = testCanvas.height = 10;
+            
+            // Try each context mode successively
+            const contextNames = ['webgl2', 'webgl', 'experimental-webgl'];
+            for (const name of contextNames) {
+                try {
+                    const gl = testCanvas.getContext(name, {
+                        alpha: true,
+                        antialias: true,
+                        depth: true,
+                        failIfMajorPerformanceCaveat: false,
+                        powerPreference: 'default',
+                        premultipliedAlpha: false,
+                        preserveDrawingBuffer: true,
+                        stencil: false
+                    });
+                    
+                    if (gl) {
+                        // Add WebGL details to window to help debugging
+                        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                        window.webGLInfo = {
+                            contextName: name,
+                            renderer: debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : 'unknown',
+                            vendor: debugInfo ? gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) : 'unknown',
+                            version: gl.getParameter(gl.VERSION),
+                            shadingLanguageVersion: gl.getParameter(gl.SHADING_LANGUAGE_VERSION),
+                            maxTextureSize: gl.getParameter(gl.MAX_TEXTURE_SIZE)
+                        };
+                        
+                        console.log('WebGL support details:', window.webGLInfo);
+                        return true;
+                    }
+                } catch (e) {
+                    console.warn(`Error testing ${name} context:`, e);
+                }
+            }
+            
+            console.warn('WebGL not supported in this browser');
+            return false;
+        } catch (e) {
+            console.error('Error in WebGL detection:', e);
+            return false;
+        }
+    }
+    
+    // Wait for DOM to be fully loaded before doing anything
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM Content Loaded - Starting initialization');
+        
+        // Verify WebGL support early
+        window.hasWebGLSupport = testWebGLSupport();
+        
+        // Prepare canvas right away for better WebGL compatibility
+        const canvas = document.getElementById('simulation');
+        if (canvas) {
+            // Properly setup the canvas
+            canvas.width = canvas.parentElement.clientWidth || 800;
+            canvas.height = canvas.parentElement.clientHeight || 600;
+        }
+        
+        // Load scripts in the correct dependency order
+        loadScriptsInOrder([
+            'materials.js',
+            'shaders.js',
+            'engine.js',
+            'tools.js',
+            'app.js'
+        ], function() {
+            console.log('All scripts loaded successfully');
+            
+            // Call initialization function
+            if (typeof initializeSimulation === 'function') {
+                console.log('Calling initializeSimulation explicitly');
+                initializeSimulation();
+            } else {
+                console.error('Could not find initializeSimulation function');
+            }
+        });
+    });
+    </script>
 </body>
 </html>

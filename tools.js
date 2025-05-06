@@ -10,16 +10,116 @@ class ToolManager {
         this.isDrawing = false;
         this.lastX = 0;
         this.lastY = 0;
+        this.cursorX = 0;
+        this.cursorY = 0;
+        this.cursorVisible = false;
+        
+        this.cursorOverlay = document.getElementById('cursor-overlay');
+        this.tooltip = new Tooltip();
+        this.materialDescriptions = {
+            'sand': 'Sand: Granular material that flows and piles up',
+            'wood': 'Wood: Solid material that can burn',
+            'water': 'Water: Liquid that flows freely to fill spaces',
+            'fire': 'Fire: Spreads to flammable materials and rises',
+            'wall': 'Wall: Solid barrier that blocks flow'
+        };
         
         this.setupEventListeners();
         this.setupToolButtons();
+        this.setupCursor();
+        this.setupTooltips();
+    }
+    
+    setupCursor() {
+        if (!this.cursorOverlay) {
+            this.cursorOverlay = document.createElement('div');
+            this.cursorOverlay.id = 'cursor-overlay';
+            this.cursorOverlay.className = 'hidden';
+            document.getElementById('container').appendChild(this.cursorOverlay);
+        }
+        
+        this.updateCursorIcon();
+    }
+    
+    updateCursorIcon() {
+        if (!this.cursorOverlay) return;
+        
+        this.cursorOverlay.innerHTML = '';
+        
+        let iconSrc = '';
+        
+        switch (this.currentTool) {
+            case 'draw':
+                switch (this.currentMaterial) {
+                    case MaterialType.SAND:
+                        iconSrc = 'mojis/sand.png';
+                        break;
+                    case MaterialType.WOOD:
+                        iconSrc = 'mojis/wood.png';
+                        break;
+                    case MaterialType.WATER:
+                        iconSrc = 'mojis/water.png';
+                        break;
+                    case MaterialType.FIRE:
+                        iconSrc = 'mojis/fire.png';
+                        break;
+                    case MaterialType.WALL:
+                        iconSrc = 'mojis/wall.png';
+                        break;
+                    default:
+                        iconSrc = 'mojis/sand.png';
+                }
+                break;
+            case 'erase':
+                iconSrc = 'mojis/bin.png';
+                break;
+            case 'ignite':
+                iconSrc = 'mojis/fire.png';
+                break;
+        }
+        
+        if (iconSrc) {
+            const img = document.createElement('img');
+            img.src = iconSrc;
+            img.alt = this.currentTool;
+            this.cursorOverlay.appendChild(img);
+        }
+    }
+    
+    updateCursorPosition(x, y) {
+        if (!this.cursorOverlay) return;
+        
+        this.cursorX = x;
+        this.cursorY = y;
+        
+        this.cursorOverlay.style.left = `${x}px`;
+        this.cursorOverlay.style.top = `${y}px`;
+    }
+    
+    showCursor() {
+        if (!this.cursorOverlay) return;
+        this.cursorVisible = true;
+        this.cursorOverlay.classList.remove('hidden');
+    }
+    
+    hideCursor() {
+        if (!this.cursorOverlay) return;
+        this.cursorVisible = false;
+        this.cursorOverlay.classList.add('hidden');
     }
     
     setupEventListeners() {
         this.canvas.addEventListener('mousedown', this.handlePointerStart.bind(this));
-        this.canvas.addEventListener('mousemove', this.handlePointerMove.bind(this));
+        this.canvas.addEventListener('mousemove', (e) => {
+            this.updateCursorPosition(e.clientX, e.clientY);
+            this.handlePointerMove(e);
+        });
         this.canvas.addEventListener('mouseup', this.handlePointerEnd.bind(this));
-        this.canvas.addEventListener('mouseleave', this.handlePointerEnd.bind(this));
+        this.canvas.addEventListener('mouseenter', () => this.showCursor());
+        this.canvas.addEventListener('mouseleave', () => {
+            this.hideCursor();
+            this.handlePointerEnd();
+        });
         
         this.canvas.addEventListener('touchstart', (e) => {
             e.preventDefault();
@@ -61,9 +161,57 @@ class ToolManager {
         if (pauseButton) {
             pauseButton.addEventListener('click', () => {
                 this.engine.togglePause();
-                pauseButton.textContent = this.engine.running ? '⏯️' : '▶️';
+                const pauseIcon = pauseButton.querySelector('img');
+                if (pauseIcon) {
+                    pauseIcon.src = 'mojis/playpause.png';
+                }
             });
         }
+    }
+    
+    setupTooltips() {
+        const materialButtons = document.querySelectorAll('.material-button');
+        materialButtons.forEach(button => {
+            button.addEventListener('mouseenter', (e) => {
+                const material = button.getAttribute('data-material');
+                const description = this.materialDescriptions[material] || material;
+                const rect = button.getBoundingClientRect();
+                this.tooltip.show(description, rect.left + rect.width / 2, rect.bottom);
+            });
+            
+            button.addEventListener('mouseleave', () => {
+                this.tooltip.hide();
+            });
+        });
+        
+        const toolButtons = document.querySelectorAll('.tool-action');
+        toolButtons.forEach(button => {
+            button.addEventListener('mouseenter', (e) => {
+                const tool = button.getAttribute('data-tool');
+                let description = '';
+                
+                switch(tool) {
+                    case 'draw':
+                        description = 'Draw: Place material on the canvas';
+                        break;
+                    case 'erase':
+                        description = 'Erase: Remove material from the canvas';
+                        break;
+                    case 'ignite':
+                        description = 'Ignite: Start fires or ignite flammable material';
+                        break;
+                    default:
+                        description = tool;
+                }
+                
+                const rect = button.getBoundingClientRect();
+                this.tooltip.show(description, rect.left + rect.width / 2, rect.bottom);
+            });
+            
+            button.addEventListener('mouseleave', () => {
+                this.tooltip.hide();
+            });
+        });
     }
     
     setupToolButtons() {
@@ -95,6 +243,7 @@ class ToolManager {
     setTool(tool) {
         this.currentTool = tool;
         this.updateCursor();
+        this.updateCursorIcon();
     }
     
     setMaterial(materialName) {
@@ -119,6 +268,10 @@ class ToolManager {
                 break;
             default:
                 this.currentMaterial = MaterialType.SAND;
+        }
+        
+        if (this.currentTool === 'draw') {
+            this.updateCursorIcon();
         }
     }
     
@@ -185,7 +338,10 @@ class ToolManager {
                 this.engine.togglePause();
                 const pauseButton = document.getElementById('pause-button');
                 if (pauseButton) {
-                    pauseButton.textContent = this.engine.running ? '⏯️' : '▶️';
+                    const pauseIcon = pauseButton.querySelector('img');
+                    if (pauseIcon) {
+                        pauseIcon.src = 'mojis/playpause.png';
+                    }
                 }
                 e.preventDefault();
                 break;
